@@ -262,14 +262,16 @@ function lockPlacement(locked, label = 'Bereit') {
   btn.disabled = locked || !placement.isComplete();
 }
 
-function statLines(names, stats, score) {
-  return [
-    ['', `${names[0]} : ${names[1]}`],
-    ['Schüsse', `${stats[0].shots} : ${stats[1].shots}`],
-    ['Trefferquote', `${stats[0].accuracy} % : ${stats[1].accuracy} %`],
-    ['Versenkt', `${stats[0].sunk} : ${stats[1].sunk}`],
-    ['Gesamtstand', `${score[0]} : ${score[1]}`],
-  ];
+function statTable(names, stats, score) {
+  return {
+    names,
+    rows: [
+      ['Schüsse', stats[0].shots, stats[1].shots],
+      ['Trefferquote', `${stats[0].accuracy} %`, `${stats[1].accuracy} %`],
+      ['Versenkt', stats[0].sunk, stats[1].sunk],
+      ['Gesamtstand', score[0], score[1]],
+    ],
+  };
 }
 
 // ==== Lokales Spiel: ein Gerät oder gegen die KI ======================================
@@ -461,7 +463,7 @@ class LocalMatch {
     battle.showResult({
       title,
       tone: humanWon ? 'win' : 'lose',
-      lines: statLines(this.names, [g.stats(0), g.stats(1)], this.score),
+      ...statTable(this.names, [g.stats(0), g.stats(1)], this.score),
       buttons: [
         { label: 'Revanche', primary: true, action: () => this.newRound() },
         { label: 'Menü', action: () => this.end() },
@@ -813,7 +815,7 @@ class OnlineMatch {
     battle.showResult({
       title: won ? 'Sieg!' : 'Niederlage',
       tone: won ? 'win' : 'lose',
-      lines: statLines([settings.name, this.opp], [s.game.stats(0), s.game.stats(1)], s.score),
+      ...statTable([settings.name, this.opp], [s.game.stats(0), s.game.stats(1)], s.score),
       note: s.rematch.them ? `${this.opp} will eine Revanche!` : '',
       buttons: [
         {

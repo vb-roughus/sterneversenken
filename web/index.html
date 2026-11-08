@@ -212,9 +212,9 @@
       <div class="battle-body">
         <div class="enemy-wrap">
           <div class="side-head">
-            <span class="side-label">Ziel · <b class="enemy-name"></b></span>
-            <span class="fleet-row enemy-fleet"></span>
+            <span class="side-label"><span class="enemy-tag">Ziel</span> · <b class="enemy-name"></b></span>
           </div>
+          <div class="fleet-row enemy-fleet" title="Gegnerische Schiffe – die Zahl gibt an, wie viele Felder ein Schiff belegt"></div>
           <div class="enemy-host"></div>
         </div>
         <div class="lower">
@@ -232,11 +232,13 @@
       </div>
       <div class="result" hidden>
         <div class="result-card">
-          <h2 class="result-title"></h2>
-          <ul class="result-lines"></ul>
+          <div class="result-head">
+            <h2 class="result-title"></h2>
+            <button type="button" class="link peek-btn">Ausblenden</button>
+          </div>
+          <table class="result-table"></table>
           <p class="result-note" hidden></p>
           <div class="result-buttons"></div>
-          <button type="button" class="link peek-btn">Spielfeld ansehen</button>
         </div>
         <button type="button" class="btn small unpeek-btn">Ergebnis zeigen</button>
       </div>

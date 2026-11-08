@@ -118,12 +118,14 @@ export class BoardView {
   }
 }
 
+/** Schiffsübersicht: Symbol und Anzahl Felder je Schiff; versenkte durchgestrichen. */
 export function fleetIcons(fleetDefs, sunkIds) {
   return fleetDefs
-    .map(
-      (d) =>
-        `<span class="fleet-icon${sunkIds.has(d.id) ? ' sunk' : ''}" title="${d.name}" style="--len:${d.size}">${shipSvg(d.id, d.size, 'h')}</span>`,
-    )
+    .map((d) => {
+      const sunk = sunkIds.has(d.id);
+      const title = `${d.name}: ${d.size} Felder${sunk ? ' – versenkt' : ''}`;
+      return `<span class="fleet-item${sunk ? ' sunk' : ''}" title="${title}"><span class="fleet-icon" style="--len:${d.size}">${shipSvg(d.id, d.size, 'h')}</span><b class="fleet-size">${d.size}</b></span>`;
+    })
     .join('');
 }
 
