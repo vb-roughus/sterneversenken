@@ -1,0 +1,10 @@
+{
+  "name": "sterneversenken",
+  "private": true,
+  "type": "module",
+  "description": "Schiffe versenken im Weltall – zwei Spieler, direkt von Handy zu Handy",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "serve": "python3 -m http.server 8080 --directory web"
+  }
+}
