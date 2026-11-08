@@ -67,6 +67,8 @@ let controller = null;
 function show(name) {
   current = name;
   for (const s of $$('.screen')) s.classList.toggle('active', s.dataset.screen === name);
+  // Die Ergebnisleiste gehört nur zum Gefecht (z.B. nach "Revanche" weg damit).
+  if (name !== 'battle') battle.hideResult();
   if (name === 'menu') refreshMenu();
 }
 

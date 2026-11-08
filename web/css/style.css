@@ -68,6 +68,8 @@ button { font: inherit; color: inherit; }
   transition: opacity .28s ease, transform .28s ease;
 }
 .screen.active { opacity: 1; pointer-events: auto; transform: none; }
+/* Unsichtbare Bildschirme dürfen keine Tipps abfangen – auch nicht ihre Kinder mit eigenem pointer-events. */
+.screen:not(.active) * { pointer-events: none !important; }
 .scroll {
   flex: 1;
   overflow-y: auto;
