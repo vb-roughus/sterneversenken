@@ -5,44 +5,60 @@
 // SimTransport:     zwei Browser-Tabs auf demselben Rechner (index.html?sim=1), zum Testen.
 //
 // Ereignisse: advertising, discovering, found {id,name}, lost {id},
-//             connecting {id,name,code}, connected {id,name}, disconnected, message {text}, error {message}
+//             connecting {id,name,code}, connected {id,name}, connect-failed {message,kind},
+//             disconnected, message {text}, error {message,kind,code}, hint {message,kind}, resumed
 
 import { Emitter } from './emitter.js';
+import { bridge, callNative, nativeEvents } from './native.js';
+
+const NET_EVENTS = [
+  'advertising',
+  'discovering',
+  'found',
+  'lost',
+  'connecting',
+  'connected',
+  'connect-failed',
+  'disconnected',
+  'message',
+  'error',
+  'hint',
+  'resumed',
+];
 
 class AndroidTransport extends Emitter {
-  constructor(bridge) {
+  constructor() {
     super();
-    this.bridge = bridge;
     this.kind = 'nearby';
-    window.__nativeEvent = (type, data) => this.emit(type, data || {});
+    for (const type of NET_EVENTS) nativeEvents.on(type, (data) => this.emit(type, data));
   }
 
   get available() {
-    try {
-      return this.bridge.nearbyAvailable();
-    } catch {
-      return false;
-    }
+    return callNative('nearbyAvailable', [], false);
   }
 
   host(name) {
-    this.bridge.startHosting(name);
+    callNative('startHosting', [name]);
   }
 
   discover(name) {
-    this.bridge.startDiscovery(name);
+    callNative('startDiscovery', [name]);
   }
 
   connect(id) {
-    this.bridge.connect(id);
+    callNative('connect', [id]);
   }
 
   send(obj) {
-    this.bridge.send(JSON.stringify(obj));
+    callNative('send', [JSON.stringify(obj)]);
   }
 
   stop() {
-    this.bridge.stop();
+    callNative('stop');
+  }
+
+  openSettings(kind) {
+    callNative('openSettings', [kind]);
   }
 }
 
@@ -96,6 +112,8 @@ class SimTransport extends Emitter {
     this.peer = null;
     this.mode = null;
   }
+
+  openSettings() {}
 
   _drop() {
     if (!this.peer) return;
@@ -153,7 +171,7 @@ let transport;
 /** Liefert den Transport oder null, wenn auf diesem Gerät kein Netzwerkspiel möglich ist. */
 export function getTransport() {
   if (transport !== undefined) return transport;
-  if (window.AndroidBridge) transport = new AndroidTransport(window.AndroidBridge);
+  if (bridge) transport = new AndroidTransport();
   else if (new URLSearchParams(location.search).has('sim') && 'BroadcastChannel' in window) transport = new SimTransport();
   else transport = null;
   return transport;

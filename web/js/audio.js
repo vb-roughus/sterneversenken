@@ -1,5 +1,7 @@
 // Alle Geräusche werden live synthetisiert – keine Audiodateien nötig.
 
+import { bridge, callNative } from './native.js';
+
 let ctx = null;
 let master = null;
 let noiseBuf = null;
@@ -123,9 +125,9 @@ export function setVibrateEnabled(on) {
 export function vibrate(ms) {
   if (!vibrateEnabled) return;
   try {
-    if (window.AndroidBridge?.vibrate) {
+    if (bridge) {
       const pattern = Array.isArray(ms) ? ms : [ms];
-      window.AndroidBridge.vibrate(JSON.stringify(pattern));
+      callNative('vibrate', [JSON.stringify(pattern)]);
     } else navigator.vibrate?.(ms);
   } catch {
     /* egal */

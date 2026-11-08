@@ -21,6 +21,10 @@
         </header>
         <p class="callsign">Rufzeichen: <b data-bind="name"></b> <button type="button" class="link" data-go="settings">ändern</button></p>
         <nav class="menu">
+          <button type="button" class="btn update-banner" data-action="update" data-update-banner hidden>
+            <span class="btn-title" data-bind="update-title">Update verfügbar</span>
+            <span class="btn-sub" data-bind="update-sub"></span>
+          </button>
           <button type="button" class="btn primary big" data-action="host">
             <span class="btn-title">Spiel eröffnen</span>
             <span class="btn-sub">Zweites Handy tritt bei</span>
@@ -64,6 +68,12 @@
           <h3>Regeln</h3>
           <p class="hint">Gelten für Spiele, die du eröffnest.</p>
           <div class="rules" data-rules></div>
+        </div>
+        <div class="panel" data-native-only hidden>
+          <h3>App</h3>
+          <p class="app-version" data-bind="app-version"></p>
+          <p class="hint" data-bind="update-status"></p>
+          <button type="button" class="btn update-btn" data-action="update" data-bind="update-button">Nach Updates suchen</button>
         </div>
         <div class="panel">
           <h3>Ton &amp; Vibration</h3>
@@ -137,6 +147,10 @@
       <div class="scroll">
         <div class="radar" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
         <p class="lobby-status" data-bind="host-status">Sende Signal …</p>
+        <div class="notice" data-notice hidden>
+          <p class="notice-text"></p>
+          <div class="notice-buttons"></div>
+        </div>
         <p class="hint center">Sichtbar als <b data-bind="name"></b>. Auf dem zweiten Handy „Spiel beitreten“ wählen.</p>
         <div class="panel">
           <h3>Regeln für diese Partie</h3>
@@ -154,6 +168,10 @@
       <div class="scroll">
         <div class="radar searching" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
         <p class="lobby-status" data-bind="join-status">Suche Spiele in der Nähe …</p>
+        <div class="notice" data-notice hidden>
+          <p class="notice-text"></p>
+          <div class="notice-buttons"></div>
+        </div>
         <ul class="found-list" data-bind="found"></ul>
         <p class="hint center">Auf dem anderen Handy muss „Spiel eröffnen“ aktiv sein.</p>
       </div>

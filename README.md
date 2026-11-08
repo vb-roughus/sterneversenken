@@ -26,8 +26,16 @@ Jeder Push baut per GitHub Actions eine APK (`.github/workflows/android.yml`).
 - **Andere Branches:** im Actions-Lauf unter *Artifacts → sterneversenken-apk* herunterladen und entpacken.
 
 Auf dem Handy „Installation aus unbekannten Quellen“ erlauben und die APK öffnen.
-Beim ersten Spiel mit zwei Handys fragt die App nach der Berechtigung für **Geräte in der Nähe**
-(auf älteren Android-Versionen: Standort) – ohne die können sich die Handys nicht finden.
+Beim ersten Spiel mit zwei Handys fragt die App nach den Berechtigungen **Standort** und
+**Geräte in der Nähe**. Google Nearby braucht beide, auch auf neuen Android-Versionen.
+Fehlt eine, zeigt die App an, welche, und öffnet auf Wunsch direkt die Einstellungen.
+
+### Updates
+
+Die App sucht beim Start auf GitHub nach einer neueren Version (Release `latest`, Datei `version.json`).
+Gibt es eine, erscheint im Menü „Update verfügbar“. Ein Tipp lädt die APK herunter und öffnet den
+Android-Installer. Beim ersten Mal fragt Android, ob die App „Unbekannte Apps installieren“ darf.
+Von Hand: *Einstellungen → App → Nach Updates suchen*. Fürs Spielen selbst braucht die App kein Internet.
 
 Alle Builds sind mit demselben Sideload-Schlüssel (`app/sideload.jks`) signiert. So lassen sich neue
 Versionen einfach über die alte installieren. Der Schlüssel ist bewusst öffentlich und nur fürs
@@ -44,7 +52,7 @@ web/                 Das Spiel (HTML/CSS/JS, ohne Build-Schritt)
   js/netgame.js      Protokoll zwischen zwei Geräten (inkl. Wiederverbinden)
   js/net.js          Transport: Android-Nearby oder Browser-Simulation
   js/main.js         Bildschirme und Spielabläufe
-app/                 Android-Hülle: WebView + Nearby-Brücke (Kotlin)
+app/                 Android-Hülle: WebView, Nearby-Brücke und Updater (Kotlin)
 tests/               Tests für Spiellogik, KI und Protokoll (node --test)
 ```
 
