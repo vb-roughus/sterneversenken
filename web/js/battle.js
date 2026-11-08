@@ -25,6 +25,11 @@ export class BattleUI {
     this.scoreEl = root.querySelector('.score');
     this.ownWrap = root.querySelector('.own-wrap');
     this.resultEl = root.querySelector('.result');
+    // Höhe der Ergebnisleiste merken, damit das Brett darüber Platz findet (siehe CSS --result-h)
+    const card = this.resultEl.querySelector('.result-card');
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => root.style.setProperty('--result-h', `${card.offsetHeight}px`)).observe(card);
+    }
     this.target = null;
     this.ctx = null;
     this.lastOwn = null;
@@ -216,6 +221,7 @@ export class BattleUI {
     const noteEl = r.querySelector('.result-note');
     noteEl.textContent = note;
     noteEl.hidden = !note;
+    noteEl.classList.remove('alert');
     const btns = r.querySelector('.result-buttons');
     btns.innerHTML = '';
     for (const b of buttons) {
@@ -234,10 +240,11 @@ export class BattleUI {
     r.classList.remove('peek');
   }
 
-  setResultNote(text) {
+  setResultNote(text, alert = false) {
     const noteEl = this.resultEl.querySelector('.result-note');
     noteEl.textContent = text;
     noteEl.hidden = !text;
+    noteEl.classList.toggle('alert', alert);
   }
 
   hideResult() {

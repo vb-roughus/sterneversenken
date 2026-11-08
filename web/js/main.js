@@ -5,7 +5,7 @@ import { getTransport } from './net.js';
 import { Starfield } from './starfield.js';
 import { Placement } from './placement.js';
 import { BattleUI } from './battle.js';
-import { sfx, unlockAudio, setSoundEnabled, setVibrateEnabled } from './audio.js';
+import { sfx, unlockAudio, setSoundEnabled, setVibrateEnabled, vibrate } from './audio.js';
 import { wait } from './fx.js';
 import { shipSvg } from './ships.js';
 import { bridge, callNative, nativeEvents } from './native.js';
@@ -103,8 +103,9 @@ function fillButtons(box, buttons, done) {
 }
 
 let dialogResolve = null;
-function dialog({ title, text, buttons }) {
+function dialog({ title, text, buttons, kind = '' }) {
   const d = $('#dialog');
+  d.dataset.kind = kind;
   bindText('dialog-title', title);
   bindText('dialog-text', text);
   return new Promise((resolve) => {
@@ -625,12 +626,7 @@ class OnlineMatch {
         }
       }),
     );
-    s.on('rematch', () =>
-      this.enqueue(() => {
-        sfx.turn();
-        battle.setResultNote(`${this.opp} will eine Revanche!`);
-      }),
-    );
+    s.on('rematch', () => this.enqueue(() => this.onRematchRequest()));
     s.on('left', () => this.enqueue(() => this.opponentLeft()));
     s.on('error', ({ message }) => toast(message, true));
   }
@@ -746,6 +742,8 @@ class OnlineMatch {
 
   enterPlacement() {
     hideOverlay();
+    this.rematchPrompted = false;
+    if ($('#dialog').dataset.kind === 'rematch' && !$('#dialog').hidden) closeDialog(false);
     this.reconnecting = false;
     placement.reset(this.session.rules);
     lockPlacement(false);
@@ -818,19 +816,55 @@ class OnlineMatch {
       title: won ? 'Sieg!' : 'Niederlage',
       tone: won ? 'win' : 'lose',
       ...statTable([settings.name, this.opp], [s.game.stats(0), s.game.stats(1)], s.score),
-      note: s.rematch.them ? `${this.opp} will eine Revanche!` : '',
       buttons: [
-        {
-          label: 'Revanche',
-          primary: true,
-          action: (btn) => {
-            btn.disabled = true;
-            btn.textContent = 'Angefragt …';
-            s.requestRematch();
-          },
-        },
+        { id: 'rematch', label: 'Revanche', primary: true, action: () => this.acceptRematch() },
         { label: 'Menü', action: () => this.leave() },
       ],
+    });
+    // Kam die Anfrage schon während der Siegesanzeige, jetzt deutlich zeigen.
+    if (s.rematch.them && !s.rematch.me) this.onRematchRequest();
+  }
+
+  /** Revanche anfragen bzw. die Anfrage des Gegners annehmen. */
+  acceptRematch() {
+    const s = this.session;
+    if (s.phase !== 'over' || s.rematch.me) return;
+    const btn = $('.result-buttons [data-id="rematch"]');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.remove('attention');
+      btn.textContent = s.rematch.them ? 'Startet …' : 'Angefragt …';
+    }
+    if (!s.rematch.them) battle.setResultNote(`Revanche angefragt – warte auf ${this.opp} …`);
+    s.requestRematch();
+  }
+
+  /** Der Gegner fordert eine Revanche: Ton, Vibration, Hinweis und Dialog mit „Annehmen“. */
+  onRematchRequest() {
+    const s = this.session;
+    if (s.phase !== 'over' || s.rematch.me || current !== 'battle' || this.rematchPrompted) return;
+    const result = $('.result');
+    if (result.hidden) return; // Ergebnis noch nicht da – showOver() holt das nach
+    this.rematchPrompted = true;
+    result.classList.remove('peek');
+    battle.setResultNote(`${this.opp} fordert eine Revanche!`, true);
+    const btn = $('.result-buttons [data-id="rematch"]');
+    if (btn) {
+      btn.textContent = 'Revanche annehmen';
+      btn.classList.add('attention');
+    }
+    sfx.turn();
+    vibrate([80, 60, 80, 60, 160]);
+    dialog({
+      kind: 'rematch',
+      title: 'Revanche!',
+      text: `${this.opp} fordert eine Revanche. Annehmen?`,
+      buttons: [
+        { label: 'Nicht jetzt', value: false },
+        { label: 'Annehmen', value: true, primary: true },
+      ],
+    }).then((ok) => {
+      if (ok) this.acceptRematch();
     });
   }
 
@@ -873,10 +907,12 @@ class OnlineMatch {
   }
 
   async opponentLeft() {
+    if ($('#dialog').dataset.kind === 'rematch' && !$('#dialog').hidden) closeDialog(false);
     if (this.session.phase === 'over') {
       battle.setResultNote(`${this.opp} hat das Spiel verlassen.`);
       $$('.result-buttons .btn.primary').forEach((b) => {
         b.disabled = true;
+        b.classList.remove('attention');
       });
       this.ended = true;
       this.cleanup();
