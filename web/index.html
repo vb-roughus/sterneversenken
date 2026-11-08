@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#03050c">
+  <title>Sterne versenken</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="stars" aria-hidden="true"></canvas>
+
+  <div id="app">
+
+    <!-- Hauptmenü -->
+    <section class="screen" data-screen="menu">
+      <div class="menu-wrap">
+        <header class="logo">
+          <p class="logo-pre">Eine Raumschlacht für zwei</p>
+          <h1><span>Sterne</span><span>versenken</span></h1>
+        </header>
+        <p class="callsign">Rufzeichen: <b data-bind="name"></b> <button type="button" class="link" data-go="settings">ändern</button></p>
+        <nav class="menu">
+          <button type="button" class="btn primary big" data-action="host">
+            <span class="btn-title">Spiel eröffnen</span>
+            <span class="btn-sub">Zweites Handy tritt bei</span>
+          </button>
+          <button type="button" class="btn primary big" data-action="join">
+            <span class="btn-title">Spiel beitreten</span>
+            <span class="btn-sub">Spiele in der Nähe suchen</span>
+          </button>
+          <p class="menu-note" data-bind="net-note" hidden></p>
+          <div class="menu-row">
+            <button type="button" class="btn" data-action="hotseat">
+              <span class="btn-title">Ein Gerät</span>
+              <span class="btn-sub">Zu zweit, abwechselnd</span>
+            </button>
+            <button type="button" class="btn" data-action="ai">
+              <span class="btn-title">Training</span>
+              <span class="btn-sub">Gegen den Computer</span>
+            </button>
+          </div>
+          <div class="menu-row">
+            <button type="button" class="btn ghost" data-go="settings">Einstellungen</button>
+            <button type="button" class="btn ghost" data-go="help">Anleitung</button>
+          </div>
+        </nav>
+      </div>
+    </section>
+
+    <!-- Einstellungen -->
+    <section class="screen" data-screen="settings">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <h2>Einstellungen</h2>
+      </header>
+      <div class="scroll">
+        <div class="panel">
+          <label class="field-label" for="set-name">Dein Rufzeichen</label>
+          <input id="set-name" class="input" maxlength="20" autocomplete="off" spellcheck="false">
+          <p class="hint">Unter diesem Namen sieht dich dein Mitspieler.</p>
+        </div>
+        <div class="panel">
+          <h3>Regeln</h3>
+          <p class="hint">Gelten für Spiele, die du eröffnest.</p>
+          <div class="rules" data-rules></div>
+        </div>
+        <div class="panel">
+          <h3>Ton &amp; Vibration</h3>
+          <label class="toggle"><input type="checkbox" id="set-sound"><span>Soundeffekte</span></label>
+          <label class="toggle"><input type="checkbox" id="set-vibrate"><span>Vibration</span></label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Anleitung -->
+    <section class="screen" data-screen="help">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <h2>Anleitung</h2>
+      </header>
+      <div class="scroll prose">
+        <div class="panel">
+          <h3>Ziel</h3>
+          <p>Versenke alle fünf Schiffe der gegnerischen Flotte, bevor deine eigene zerstört ist.</p>
+          <ul class="fleet-list" data-fleet-list></ul>
+        </div>
+        <div class="panel">
+          <h3>Flotte aufstellen</h3>
+          <p>Schiff unten antippen, dann aufs Feld tippen. Ein platziertes Schiff antippen, um es auszuwählen, nochmals antippen, um es zu drehen. Schiffe lassen sich auch ziehen. „Zufällig“ stellt die ganze Flotte auf einmal auf.</p>
+        </div>
+        <div class="panel">
+          <h3>Gefecht</h3>
+          <p>Tippe auf ein Feld des Gegners, um es anzuvisieren, und dann auf „Feuer“ oder nochmals aufs Feld. Gemeldet wird <b>Daneben</b>, <b>Treffer</b> oder <b>Versenkt</b>. Mit der Regel „Nach Treffer nochmals“ darfst du weiterschiessen, solange du triffst.</p>
+          <p>Ist die Regel „Schiffe dürfen sich berühren“ aus, markiert das Spiel die Felder rund um versenkte Schiffe automatisch als leer.</p>
+        </div>
+        <div class="panel">
+          <h3>Zwei Handys verbinden</h3>
+          <p>Ein Spieler wählt <b>Spiel eröffnen</b>, der andere <b>Spiel beitreten</b> und tippt auf den Namen. Die Handys verbinden sich direkt über Bluetooth und WLAN. Es braucht weder Internet noch einen Router. Bluetooth und Standort sollten eingeschaltet sein.</p>
+          <p>Reisst die Verbindung ab, suchen sich die Handys automatisch wieder und die Partie geht dort weiter, wo sie war.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vorbereitung lokales Spiel (Ein Gerät / Training) -->
+    <section class="screen" data-screen="local-setup">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <h2 data-bind="local-title">Ein Gerät</h2>
+      </header>
+      <div class="scroll">
+        <div class="panel" data-only="hotseat">
+          <label class="field-label" for="p1-name">Spieler 1</label>
+          <input id="p1-name" class="input" maxlength="20" autocomplete="off" spellcheck="false">
+          <label class="field-label" for="p2-name">Spieler 2</label>
+          <input id="p2-name" class="input" maxlength="20" autocomplete="off" spellcheck="false">
+          <p class="hint">Ihr gebt das Gerät nach jedem Zug weiter. Die Flotten bleiben dabei verdeckt.</p>
+        </div>
+        <div class="panel" data-only="ai">
+          <h3>Gegner</h3>
+          <div class="segmented" data-ai-levels></div>
+        </div>
+        <div class="panel">
+          <h3>Regeln</h3>
+          <div class="rules" data-rules></div>
+        </div>
+        <button type="button" class="btn primary big" data-action="local-start">Flotte aufstellen</button>
+      </div>
+    </section>
+
+    <!-- Lobby: Spiel eröffnen -->
+    <section class="screen" data-screen="host">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <h2>Spiel eröffnen</h2>
+      </header>
+      <div class="scroll">
+        <div class="radar" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+        <p class="lobby-status" data-bind="host-status">Sende Signal …</p>
+        <p class="hint center">Sichtbar als <b data-bind="name"></b>. Auf dem zweiten Handy „Spiel beitreten“ wählen.</p>
+        <div class="panel">
+          <h3>Regeln für diese Partie</h3>
+          <div class="rules" data-rules></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Lobby: Spiel beitreten -->
+    <section class="screen" data-screen="join">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <h2>Spiel beitreten</h2>
+      </header>
+      <div class="scroll">
+        <div class="radar searching" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
+        <p class="lobby-status" data-bind="join-status">Suche Spiele in der Nähe …</p>
+        <ul class="found-list" data-bind="found"></ul>
+        <p class="hint center">Auf dem anderen Handy muss „Spiel eröffnen“ aktiv sein.</p>
+      </div>
+    </section>
+
+    <!-- Flotte aufstellen -->
+    <section class="screen" data-screen="place">
+      <header class="bar">
+        <button type="button" class="icon-btn back" aria-label="Zurück">‹</button>
+        <div class="bar-titles">
+          <h2 data-bind="place-title">Flotte aufstellen</h2>
+          <p data-bind="place-sub"></p>
+        </div>
+      </header>
+      <div class="place-body">
+        <div class="place-board"></div>
+        <div class="dock"></div>
+        <div class="place-tools">
+          <button type="button" class="btn small" data-action="rotate">⟳ Drehen</button>
+          <button type="button" class="btn small" data-action="random">⚄ Zufällig</button>
+          <button type="button" class="btn small" data-action="clear">✕ Leeren</button>
+        </div>
+        <button type="button" class="btn primary big" data-action="ready">Bereit</button>
+        <p class="opp-status" data-bind="opp-status"></p>
+      </div>
+    </section>
+
+    <!-- Gefecht -->
+    <section class="screen" data-screen="battle">
+      <header class="bar battle-bar">
+        <button type="button" class="icon-btn back" aria-label="Spiel verlassen">‹</button>
+        <div class="bt-head">
+          <div class="bt-status" data-tone="">Gefecht</div>
+          <div class="bt-sub"></div>
+        </div>
+        <div class="score" hidden>0 : 0</div>
+      </header>
+      <div class="battle-body">
+        <div class="enemy-wrap">
+          <div class="side-head">
+            <span class="side-label">Ziel · <b class="enemy-name"></b></span>
+            <span class="fleet-row enemy-fleet"></span>
+          </div>
+          <div class="enemy-host"></div>
+        </div>
+        <div class="lower">
+          <div class="own-wrap">
+            <div class="side-head small">
+              <span class="side-label">Deine Flotte · <b class="own-name"></b></span>
+            </div>
+            <div class="own-host"></div>
+          </div>
+          <div class="controls">
+            <span class="fleet-row own-fleet"></span>
+            <button type="button" class="btn fire-btn" disabled>Ziel wählen</button>
+          </div>
+        </div>
+      </div>
+      <div class="result" hidden>
+        <div class="result-card">
+          <h2 class="result-title"></h2>
+          <ul class="result-lines"></ul>
+          <p class="result-note" hidden></p>
+          <div class="result-buttons"></div>
+          <button type="button" class="link peek-btn">Spielfeld ansehen</button>
+        </div>
+        <button type="button" class="btn small unpeek-btn">Ergebnis zeigen</button>
+      </div>
+    </section>
+
+    <!-- Übergabe (Ein Gerät) -->
+    <section class="screen" data-screen="pass">
+      <div class="pass-wrap">
+        <p class="pass-pre">Gerät übergeben an</p>
+        <h2 class="pass-name" data-bind="pass-name"></h2>
+        <p class="pass-info" data-bind="pass-info"></p>
+        <button type="button" class="btn primary big" data-action="pass-continue">Ich bin bereit</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Overlay: Verbindung -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <h3 data-bind="overlay-title"></h3>
+      <p data-bind="overlay-text"></p>
+      <div class="overlay-buttons"></div>
+    </div>
+  </div>
+
+  <!-- Dialog -->
+  <div class="overlay" id="dialog" hidden>
+    <div class="overlay-card">
+      <h3 data-bind="dialog-title"></h3>
+      <p data-bind="dialog-text"></p>
+      <div class="overlay-buttons"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="banner" id="banner" aria-hidden="true"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.Sterne" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/space</item>
+        <item name="android:colorBackground">@color/space</item>
+        <item name="android:statusBarColor">@color/space</item>
+        <item name="android:navigationBarColor">@color/space</item>
+    </style>
+</resources>
