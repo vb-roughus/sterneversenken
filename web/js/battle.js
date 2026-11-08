@@ -20,6 +20,7 @@ export class BattleUI {
     this.enemyFleetEl = root.querySelector('.enemy-fleet');
     this.ownFleetEl = root.querySelector('.own-fleet');
     this.enemyNameEl = root.querySelector('.enemy-name');
+    this.enemyTagEl = root.querySelector('.enemy-tag');
     this.ownNameEl = root.querySelector('.own-name');
     this.scoreEl = root.querySelector('.score');
     this.ownWrap = root.querySelector('.own-wrap');
@@ -50,6 +51,8 @@ export class BattleUI {
     this.lastOwn = ctx.lastOwn || null;
     this.lastEnemy = null;
     this.hideResult();
+    this.enemyTagEl.textContent = 'Ziel';
+    this.root.classList.remove('revealed');
     this.enemyNameEl.textContent = ctx.opp;
     this.ownNameEl.textContent = ctx.me;
     this.render();
@@ -192,14 +195,24 @@ export class BattleUI {
   /** Nach Spielende alle gegnerischen Schiffe zeigen. */
   revealFleet(fleet) {
     this.reveal = fleet;
+    this.enemyTagEl.textContent = 'Aufgedeckt';
+    this.root.classList.add('revealed');
     this.render();
   }
 
-  showResult({ title, tone, lines = [], note = '', buttons = [] }) {
+  /**
+   * Ergebnis unten als Leiste anzeigen; das aufgedeckte gegnerische Brett bleibt sichtbar.
+   * names: [links, rechts], rows: [[Bezeichnung, links, rechts], ...]
+   */
+  showResult({ title, tone, names = ['', ''], rows = [], note = '', buttons = [] }) {
     const r = this.resultEl;
     r.dataset.tone = tone;
     r.querySelector('.result-title').textContent = title;
-    r.querySelector('.result-lines').innerHTML = lines.map((l) => `<li><span>${l[0]}</span><b>${l[1]}</b></li>`).join('');
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+    r.querySelector('.result-table').innerHTML =
+      `<thead><tr><th></th><th>${esc(names[0])}</th><th>${esc(names[1])}</th></tr></thead><tbody>` +
+      rows.map((row) => `<tr><th>${esc(row[0])}</th><td>${esc(row[1])}</td><td>${esc(row[2])}</td></tr>`).join('') +
+      '</tbody>';
     const noteEl = r.querySelector('.result-note');
     noteEl.textContent = note;
     noteEl.hidden = !note;
