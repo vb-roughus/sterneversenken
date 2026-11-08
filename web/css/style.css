@@ -605,20 +605,22 @@ button { font: inherit; color: inherit; }
 @keyframes fadein { from { opacity: 0; } }
 
 .toast {
-  position: fixed; left: 50%; bottom: 24px;
+  position: fixed; left: 16px; right: 16px; bottom: 24px;
   z-index: 60;
-  max-width: calc(100% - 32px);
+  width: fit-content;
+  max-width: 520px;
+  margin: 0 auto;
   padding: 12px 16px;
   border-radius: 12px;
   border: 1px solid var(--line-strong);
   background: var(--panel-strong);
-  font: 14px/1.4 var(--mono);
-  transform: translate(-50%, 140%);
+  font: 14px/1.45 var(--mono);
+  transform: translateY(140%);
   opacity: 0;
   transition: transform .3s ease, opacity .3s ease;
   pointer-events: none;
 }
-.toast.show { transform: translate(-50%, 0); opacity: 1; }
+.toast.show { transform: none; opacity: 1; }
 .toast.bad { border-color: var(--bad); }
 
 .banner {
@@ -703,3 +705,19 @@ body.warping .screen.active { opacity: 0; transform: scale(.96); }
 [data-screen="place"].locked .place-board,
 [data-screen="place"].locked .dock,
 [data-screen="place"].locked .place-tools { pointer-events: none; opacity: .55; }
+
+/* ---- Hinweise & Updates ------------------------------------------------------ */
+.notice {
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--gold);
+  background: rgba(40, 30, 0, .55);
+  backdrop-filter: blur(6px);
+}
+.notice[data-kind="permission"], .notice[data-kind="error"] { border-color: var(--bad); background: rgba(50, 8, 14, .6); }
+.notice-text { margin: 0 0 12px; font: 14px/1.5 var(--mono); color: #f1e6d0; }
+.notice-buttons { display: grid; gap: 10px; }
+.update-banner { border-color: var(--good); background: linear-gradient(180deg, rgba(93, 255, 154, .2), rgba(10, 60, 30, .3)); color: #dcffe9; }
+.update-banner .btn-sub { color: #a8e9c1; }
+.app-version { margin: 0; font: 16px var(--mono); }
+.update-btn { width: 100%; margin-top: 10px; }

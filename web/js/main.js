@@ -8,6 +8,7 @@ import { BattleUI } from './battle.js';
 import { sfx, unlockAudio, setSoundEnabled, setVibrateEnabled } from './audio.js';
 import { wait } from './fx.js';
 import { shipSvg } from './ships.js';
+import { bridge, callNative, nativeEvents } from './native.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -562,15 +563,27 @@ class OnlineMatch {
       if (!this.reconnecting) status('Verbunden – Spiel wird vorbereitet …');
       this.session.connected();
     });
-    on('connect-failed', ({ message }) => {
+    on('connect-failed', ({ message, kind }) => {
+      if (kind === 'permission') {
+        this.problem({ message, kind });
+        return;
+      }
       toast(message || 'Verbindung fehlgeschlagen', true);
       if (this.role === 'guest') setTimeout(() => this.restartLobby(), 1200);
     });
     on('disconnected', () => this.onDisconnected());
     on('message', ({ text }) => this.session.receive(text));
-    on('error', ({ message }) => {
-      toast(message || 'Unbekannter Fehler', true);
-      if (!this.reconnecting) status('Fehler – siehe Hinweis unten');
+    on('error', (data) => this.problem(data));
+    on('hint', (data) => {
+      if (this.inLobby()) this.showNotice({ ...data, retry: false });
+      else toast(data.message);
+    });
+    on('resumed', () => {
+      // Zurück aus den Einstellungen: automatisch nochmals versuchen.
+      if (!this.awaitingSettings) return;
+      this.awaitingSettings = false;
+      this.hideNotice();
+      if (this.inLobby() || this.reconnecting) this.restartLobby();
     });
 
     const s = this.session;
@@ -620,6 +633,7 @@ class OnlineMatch {
 
   start() {
     this.found.clear();
+    this.hideNotice();
     $$('.radar').forEach((r) => r.classList.remove('done'));
     if (this.role === 'host') {
       lockRules(false);
@@ -632,6 +646,64 @@ class OnlineMatch {
       show('join');
     }
     this.restartLobby();
+  }
+
+  inLobby() {
+    return this.session.phase === 'lobby' && !this.reconnecting && (current === 'host' || current === 'join');
+  }
+
+  /** Fehler vom Transport: in der Lobby als Hinweis mit Knöpfen, sonst als Meldung. */
+  problem({ message, kind, code }) {
+    const text = message || 'Unbekannter Fehler';
+    if (this.inLobby() || kind === 'permission') {
+      bindText(this.role === 'host' ? 'host-status' : 'join-status', 'Verbindung nicht möglich');
+      this.showNotice({ message: text, kind: kind || 'error', code, retry: true });
+    } else {
+      toast(text, true);
+    }
+  }
+
+  showNotice({ message, kind, retry }) {
+    const screen = $(`[data-screen="${this.role === 'host' ? 'host' : 'join'}"]`);
+    const box = $('[data-notice]', screen);
+    box.dataset.kind = kind || '';
+    $('.notice-text', box).textContent = message;
+    const buttons = [];
+    const settings = {
+      permission: ['Berechtigungen öffnen', 'app'],
+      location: ['Standort einschalten', 'location'],
+      bluetooth: ['Bluetooth einschalten', 'bluetooth'],
+    }[kind];
+    if (settings) {
+      buttons.push({
+        label: settings[0],
+        primary: true,
+        action: () => {
+          this.awaitingSettings = true;
+          this.t.openSettings(settings[1]);
+        },
+      });
+    }
+    if (retry) {
+      buttons.push({
+        label: 'Nochmals versuchen',
+        primary: !settings,
+        action: () => {
+          this.hideNotice();
+          this.restartLobby();
+        },
+      });
+    } else {
+      buttons.push({ label: 'OK', action: () => this.hideNotice() });
+    }
+    fillButtons($('.notice-buttons', box), buttons, (b) => b.action());
+    box.hidden = false;
+  }
+
+  hideNotice() {
+    $$('[data-notice]').forEach((b) => {
+      b.hidden = true;
+    });
   }
 
   restartLobby() {
@@ -831,6 +903,7 @@ class OnlineMatch {
 
   cleanup() {
     hideOverlay();
+    this.hideNotice();
     lockRules(false);
     this.offs.forEach((off) => off());
     this.offs = [];
@@ -851,6 +924,119 @@ class OnlineMatch {
     controller = null;
     show('menu');
   }
+}
+
+// ==== Updates (nur in der Android-App) ================================================
+
+const update = { state: 'idle', info: null, percent: 0, error: '', manual: false, awaitingPermission: false };
+
+function renderUpdate() {
+  const { state, info } = update;
+  const latest = info?.latest ? `Version ${info.latest}` : 'neue Version';
+  const banner = $('[data-update-banner]');
+  banner.hidden = !['available', 'downloading', 'installing', 'needs-permission', 'failed'].includes(state);
+  banner.disabled = state === 'downloading' || state === 'installing';
+  const texts = {
+    available: ['Update verfügbar', `${latest} – jetzt installieren`],
+    downloading: ['Update wird geladen', `${update.percent} %`],
+    installing: ['Update bereit', 'Installation wird geöffnet …'],
+    'needs-permission': ['Erlaubnis nötig', '„Unbekannte Apps installieren“ erlauben, dann hier tippen'],
+    failed: ['Update fehlgeschlagen', 'Tippen, um es nochmals zu versuchen'],
+  }[state] || ['', ''];
+  bindText('update-title', texts[0]);
+  bindText('update-sub', texts[1]);
+
+  const status = {
+    idle: '',
+    checking: 'Suche nach Updates …',
+    current: 'Du hast die neueste Version.',
+    available: `Neu verfügbar: ${latest}.`,
+    downloading: `Lade Update … ${update.percent} %`,
+    installing: 'Installation wird geöffnet …',
+    'needs-permission': 'Bitte für Sterne versenken „Unbekannte Apps installieren“ erlauben.',
+    'check-failed': `Suche fehlgeschlagen: ${update.error}`,
+    failed: `Update fehlgeschlagen: ${update.error}`,
+  }[state];
+  bindText('update-status', status || '');
+  const button = $('[data-bind="update-button"]');
+  const install = ['available', 'failed', 'needs-permission'].includes(state);
+  button.disabled = ['checking', 'downloading', 'installing'].includes(state);
+  button.textContent = install ? 'Update installieren' : 'Nach Updates suchen';
+  button.classList.toggle('primary', install);
+}
+
+function checkForUpdate(manual) {
+  update.manual = manual;
+  update.state = 'checking';
+  renderUpdate();
+  callNative('checkUpdate');
+}
+
+function installUpdate() {
+  update.state = 'downloading';
+  update.percent = 0;
+  renderUpdate();
+  callNative('startUpdate');
+}
+
+function onUpdateAction() {
+  if (['available', 'failed', 'needs-permission'].includes(update.state)) installUpdate();
+  else if (!['checking', 'downloading', 'installing'].includes(update.state)) checkForUpdate(true);
+}
+
+function setupUpdates() {
+  if (!bridge) return;
+  $$('[data-native-only]').forEach((el) => {
+    el.hidden = false;
+  });
+  try {
+    const v = JSON.parse(callNative('appVersion', [], '{}'));
+    bindText('app-version', v.name ? `Version ${v.name}` : '');
+  } catch {
+    bindText('app-version', '');
+  }
+  nativeEvents.on('update-info', (info) => {
+    update.info = info;
+    update.state = info.available ? 'available' : 'current';
+    renderUpdate();
+  });
+  nativeEvents.on('update-progress', ({ percent }) => {
+    update.state = 'downloading';
+    update.percent = percent;
+    renderUpdate();
+  });
+  nativeEvents.on('update-installing', () => {
+    update.state = 'installing';
+    renderUpdate();
+  });
+  nativeEvents.on('update-needs-permission', () => {
+    update.state = 'needs-permission';
+    update.awaitingPermission = true;
+    renderUpdate();
+  });
+  nativeEvents.on('update-error', ({ message, phase }) => {
+    update.error = message || 'unbekannter Fehler';
+    // Eine fehlgeschlagene automatische Suche (z.B. ohne Internet) bleibt still.
+    if (phase === 'check') {
+      update.state = update.manual ? 'check-failed' : 'idle';
+      if (update.manual) toast(`Update-Suche fehlgeschlagen: ${update.error}`, true);
+    } else {
+      update.state = 'failed';
+      toast(`Update fehlgeschlagen: ${update.error}`, true);
+    }
+    renderUpdate();
+  });
+  nativeEvents.on('resumed', () => {
+    if (update.state === 'installing') {
+      // Installer abgebrochen: Knopf wieder anbieten.
+      update.state = 'available';
+      renderUpdate();
+    }
+    if (!update.awaitingPermission) return;
+    update.awaitingPermission = false;
+    if (callNative('canInstallUpdates', [], false)) installUpdate();
+  });
+  checkForUpdate(false);
 }
 
 // ==== Ereignisse =======================================================================
@@ -942,6 +1128,10 @@ document.addEventListener('click', (e) => {
         controller.onPlaced(placement.fleet);
       }
       break;
+    case 'update':
+      sfx.click();
+      onUpdateAction();
+      break;
     case 'pass-continue':
       sfx.click();
       controller?.onPassContinue?.();
@@ -954,6 +1144,7 @@ document.addEventListener('click', (e) => {
 
 renderRules();
 setupSettings();
+setupUpdates();
 show('menu');
 
 // Für automatisierte Tests im Browser

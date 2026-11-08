@@ -46,8 +46,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # version.json: damit die App erkennt, ob es eine neuere Version gibt
+          printf '{"versionCode": %s, "versionName": "1.0.%s", "commit": "%s"}\n' \
+            "$GITHUB_RUN_NUMBER" "$GITHUB_RUN_NUMBER" "$GITHUB_SHA" > version.json
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest sterneversenken.apk \
+          gh release create latest sterneversenken.apk version.json \
             --target "$GITHUB_SHA" \
             --title "Sterne versenken – neueste Version" \
             --notes "Build ${GITHUB_RUN_NUMBER} von ${GITHUB_SHA::7}. APK aufs Handy laden und installieren."

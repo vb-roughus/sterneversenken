@@ -33,7 +33,8 @@ import org.json.JSONObject
  * Es gibt keinen Server: Ein Gerät macht sich sichtbar ("hosten"), das andere sucht und verbindet sich.
  *
  * Aufrufe aus JavaScript kommen über window.AndroidBridge, Ereignisse gehen über
- * window.__nativeEvent(type, data) zurück an die Seite (siehe web/js/net.js).
+ * window.__nativeEvent(type, data) zurück an die Seite (siehe web/js/native.js).
+ * Ausserdem: Einstellungen öffnen, Vibration und Updates (siehe [Updater]).
  */
 class NearbyBridge(
     private val activity: MainActivity,
@@ -44,7 +45,8 @@ class NearbyBridge(
 
     @Volatile private var connectedId: String? = null
     private var myName = "Pilot"
-    private var active = true
+    @Volatile private var active = true
+    private val updater = Updater(activity) { type, data -> emit(type, data) }
 
     // ---- Aufrufe aus JavaScript -----------------------------------------------------------
 
@@ -57,15 +59,11 @@ class NearbyBridge(
         main.post {
             myName = cleanName(name)
             reset()
-            activity.ensureNearbyPermissions { granted ->
-                if (!granted) {
-                    emitError(PERMISSION_HINT)
-                    return@ensureNearbyPermissions
-                }
+            withPermissions {
                 val options = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
                 client.startAdvertising(myName, SERVICE_ID, lifecycle, options)
                     .addOnSuccessListener { emit("advertising") }
-                    .addOnFailureListener { emitError(describe(it)) }
+                    .addOnFailureListener { emitProblem("error", describe(it)) }
             }
         }
     }
@@ -75,15 +73,11 @@ class NearbyBridge(
         main.post {
             myName = cleanName(name)
             reset()
-            activity.ensureNearbyPermissions { granted ->
-                if (!granted) {
-                    emitError(PERMISSION_HINT)
-                    return@ensureNearbyPermissions
-                }
+            withPermissions {
                 val options = DiscoveryOptions.Builder().setStrategy(STRATEGY).build()
                 client.startDiscovery(SERVICE_ID, discovery, options)
                     .addOnSuccessListener { emit("discovering") }
-                    .addOnFailureListener { emitError(describe(it)) }
+                    .addOnFailureListener { emitProblem("error", describe(it)) }
             }
         }
     }
@@ -92,7 +86,7 @@ class NearbyBridge(
     fun connect(endpointId: String) {
         main.post {
             client.requestConnection(myName, endpointId, lifecycle)
-                .addOnFailureListener { emit("connect-failed", JSONObject().put("message", describe(it))) }
+                .addOnFailureListener { emitProblem("connect-failed", describe(it)) }
         }
     }
 
@@ -102,7 +96,10 @@ class NearbyBridge(
         val bytes = text.toByteArray(Charsets.UTF_8)
         main.post {
             client.sendPayload(id, Payload.fromBytes(bytes))
-                .addOnFailureListener { emitError("Senden fehlgeschlagen: ${describe(it)}") }
+                .addOnFailureListener {
+                    val problem = describe(it)
+                    emitProblem("error", problem.copy(message = "Senden fehlgeschlagen: ${problem.message}"))
+                }
         }
         return true
     }
@@ -132,7 +129,30 @@ class NearbyBridge(
         vibrator.vibrate(effect)
     }
 
+    /** kind: app | location | bluetooth | install */
+    @JavascriptInterface
+    fun openSettings(kind: String) {
+        main.post { activity.openSettings(kind) }
+    }
+
+    @JavascriptInterface
+    fun appVersion(): String = updater.versionJson().toString()
+
+    @JavascriptInterface
+    fun checkUpdate() = updater.check()
+
+    @JavascriptInterface
+    fun canInstallUpdates(): Boolean = activity.packageManager.canRequestPackageInstalls()
+
+    @JavascriptInterface
+    fun startUpdate() {
+        main.post { updater.start() }
+    }
+
     // ---- Lebenszyklus ---------------------------------------------------------------------
+
+    /** Die App ist wieder im Vordergrund (z.B. zurück aus den Einstellungen). */
+    fun onResume() = emit("resumed")
 
     fun shutdown() {
         active = false
@@ -177,7 +197,7 @@ class NearbyBridge(
                     .put("code", info.authenticationDigits),
             )
             client.acceptConnection(endpointId, payloads)
-                .addOnFailureListener { emit("connect-failed", JSONObject().put("message", describe(it))) }
+                .addOnFailureListener { emitProblem("connect-failed", describe(it)) }
         }
 
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
@@ -221,18 +241,57 @@ class NearbyBridge(
         main.post { if (active) webView.evaluateJavascript(js, null) }
     }
 
-    private fun emitError(message: String) = emit("error", JSONObject().put("message", message))
+    private data class Problem(val message: String, val kind: String = "", val code: String = "")
 
-    private fun describe(e: Exception): String {
-        val code = (e as? ApiException)?.statusCode ?: return e.message ?: "Unbekannter Fehler"
+    private fun emitProblem(type: String, p: Problem) =
+        emit(type, JSONObject().put("message", p.message).put("kind", p.kind).put("code", p.code))
+
+    /** Berechtigungen sicherstellen, auf ausgeschalteten Standort/Bluetooth hinweisen, dann `action`. */
+    private fun withPermissions(action: () -> Unit) {
+        activity.ensureNearbyPermissions { missing ->
+            if (missing.isNotEmpty()) {
+                val labels = missing.map { permissionLabel(it) }.distinct()
+                emitProblem("error", permissionProblem(labels, missing.joinToString { it.substringAfterLast('.') }))
+                return@ensureNearbyPermissions
+            }
+            when {
+                !activity.isLocationEnabled() -> emitProblem(
+                    "hint",
+                    Problem("Der Standort ist ausgeschaltet. Damit sich die Handys finden, bitte Standort einschalten.", "location"),
+                )
+                !activity.isBluetoothEnabled() -> emitProblem(
+                    "hint",
+                    Problem("Bluetooth ist ausgeschaltet. Damit sich die Handys finden, bitte Bluetooth einschalten.", "bluetooth"),
+                )
+            }
+            action()
+        }
+    }
+
+    private fun permissionLabel(permission: String): String = when {
+        permission.contains("LOCATION") -> "Standort"
+        permission.contains("BLUETOOTH") || permission.contains("NEARBY") || permission.contains("WIFI") -> "Geräte in der Nähe"
+        else -> permission.substringAfterLast('.')
+    }
+
+    private fun permissionProblem(labels: List<String>, code: String) = Problem(
+        "Es fehlt die Berechtigung „${labels.joinToString("“ und „")}“. Ohne sie finden sich die Handys nicht. " +
+            "Bitte in den App-Einstellungen unter Berechtigungen erlauben.",
+        "permission",
+        code,
+    )
+
+    private fun describe(e: Exception): Problem {
+        val code = (e as? ApiException)?.statusCode ?: return Problem(e.message ?: "Unbekannter Fehler")
         val name = ConnectionsStatusCodes.getStatusCodeString(code)
         return when {
-            name.startsWith("MISSING_PERMISSION") -> PERMISSION_HINT
+            name.startsWith("MISSING_PERMISSION") -> permissionProblem(listOf(permissionLabel(name)), name)
             code == ConnectionsStatusCodes.STATUS_RADIO_ERROR || name.contains("BLUETOOTH") ->
-                "Funkfehler. Bitte Bluetooth und WLAN einschalten und nochmals versuchen."
-            code == ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN -> "Das andere Handy ist nicht mehr erreichbar."
-            code == ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> "Schon verbunden."
-            else -> "Nearby-Fehler $name. Bluetooth, WLAN und Standort einschalten und nochmals versuchen."
+                Problem("Funkfehler. Bitte Bluetooth und WLAN einschalten und nochmals versuchen.", "bluetooth", name)
+            code == ConnectionsStatusCodes.STATUS_ENDPOINT_UNKNOWN ->
+                Problem("Das andere Handy ist nicht mehr erreichbar.", "", name)
+            code == ConnectionsStatusCodes.STATUS_ALREADY_CONNECTED_TO_ENDPOINT -> Problem("Schon verbunden.", "", name)
+            else -> Problem("Nearby-Fehler $name. Bluetooth, WLAN und Standort einschalten und nochmals versuchen.", "", name)
         }
     }
 
@@ -250,8 +309,5 @@ class NearbyBridge(
     companion object {
         private const val SERVICE_ID = "ch.sterneversenken.app.v1"
         private val STRATEGY = Strategy.P2P_POINT_TO_POINT
-        private const val PERMISSION_HINT =
-            "Ohne die Berechtigung für Geräte in der Nähe können sich die Handys nicht finden. " +
-                "Bitte in den App-Einstellungen erlauben."
     }
 }
