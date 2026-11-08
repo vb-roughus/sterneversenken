@@ -30,6 +30,8 @@
   --hull-line: #5d6a7e;
   --engine: #8fe3ff;
   --radius: 14px;
+  /* Brettbreite im Gefecht: passt in Breite und Höhe (auch bei fast quadratischen Bildschirmen wie dem Fold) */
+  --bt-board: min(100%, max(240px, calc((100vh - 170px) / 1.5)));
   --display: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
   --mono: 'Share Tech Mono', ui-monospace, 'Cascadia Mono', monospace;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -454,7 +456,7 @@ button { font: inherit; color: inherit; }
   width: 100%;
   margin: 0 auto;
 }
-.place-board { width: min(100%, 62vh); margin: 0 auto; }
+.place-board { width: min(100%, max(230px, calc(100vh - 410px))); margin: 0 auto; }
 .dock { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; touch-action: none; }
 .dock-ship {
   position: relative;
@@ -513,7 +515,8 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  justify-content: center;
+  overflow-y: auto; /* Sicherheitsnetz: lieber scrollen als abschneiden */
+  overflow-x: hidden;
   padding: 0 16px 14px;
   max-width: 1100px;
   width: 100%;
@@ -522,10 +525,11 @@ button { font: inherit; color: inherit; }
 .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 4px; min-height: 18px; }
 .side-label { font: 12px var(--mono); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-label b { color: var(--text); font-weight: 400; }
-.enemy-wrap { width: min(100%, 56vh); margin: 0 auto; }
+/* auto-Ränder statt justify-content: center – zentriert, ohne bei Platzmangel oben abzuschneiden */
+.enemy-wrap { width: var(--bt-board); margin: auto auto 0; }
 .screen[data-screen="battle"].revealed .enemy-tag { color: var(--gold); }
 .screen[data-screen="battle"].my-turn .enemy-wrap .field { border-color: var(--gold); box-shadow: 0 0 26px rgba(255, 213, 74, .22), inset 0 0 30px rgba(255, 213, 74, .06); }
-.lower { display: grid; grid-template-columns: minmax(0, 50%) 1fr; gap: 12px; align-items: end; width: min(100%, 56vh); margin: 0 auto; }
+.lower { display: grid; grid-template-columns: minmax(0, 50%) 1fr; gap: 12px; align-items: end; width: var(--bt-board); margin: 0 auto auto; }
 .own-wrap { transform-origin: 0% 100%; transition: transform .3s ease; position: relative; z-index: 5; }
 .own-wrap.focus { transform: scale(1.7); }
 .own-wrap.focus .field { background: rgba(4, 12, 28, .92); }
@@ -713,7 +717,6 @@ button { font: inherit; color: inherit; }
 }
 @media (max-height: 640px) and (orientation: portrait) {
   .bt-status { font-size: 15px; }
-  .enemy-wrap, .lower { width: min(100%, 50vh); }
   .fire-btn { min-height: 56px; }
 }
 @media (prefers-reduced-motion: reduce) {
