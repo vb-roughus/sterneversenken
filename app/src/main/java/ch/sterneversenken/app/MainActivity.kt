@@ -53,7 +53,6 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val root = FrameLayout(this).apply { setBackgroundColor(SPACE) }
         webView = WebView(this).apply { setBackgroundColor(SPACE) }
@@ -171,6 +170,12 @@ class MainActivity : ComponentActivity() {
         getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled ?: true
     } catch (e: SecurityException) {
         true
+    }
+
+    /** Bildschirm wach halten – nur während eines Spiels (siehe web/js/main.js). */
+    fun keepAwake(on: Boolean) {
+        if (on) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
     /** kind: app | location | bluetooth | install */
