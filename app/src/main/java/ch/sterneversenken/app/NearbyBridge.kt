@@ -136,6 +136,11 @@ class NearbyBridge(
     }
 
     @JavascriptInterface
+    fun keepAwake(on: Boolean) {
+        main.post { activity.keepAwake(on) }
+    }
+
+    @JavascriptInterface
     fun appVersion(): String = updater.versionJson().toString()
 
     @JavascriptInterface
@@ -307,7 +312,11 @@ class NearbyBridge(
         name.trim().take(20).ifEmpty { "Pilot" }
 
     companion object {
-        private const val SERVICE_ID = "ch.sterneversenken.app.v1"
-        private val STRATEGY = Strategy.P2P_POINT_TO_POINT
+        // v2: neue Strategie – ältere App-Versionen (v1) finden diese nicht und umgekehrt.
+        private const val SERVICE_ID = "ch.sterneversenken.app.v2"
+        // P2P_CLUSTER bleibt bei Bluetooth/BLE. P2P_POINT_TO_POINT würde für mehr Bandbreite einen
+        // WLAN-Hotspot bzw. WLAN-Direct aufbauen – unnötig für ein paar Bytes pro Zug und ein Akkufresser.
+        // Beide Geräte müssen dieselbe Strategie verwenden (also beide aktualisieren).
+        private val STRATEGY = Strategy.P2P_CLUSTER
     }
 }

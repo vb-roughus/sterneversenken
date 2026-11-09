@@ -1,5 +1,7 @@
 // Animierter Sternenhimmel mit Sprung-Effekt (Sterne werden zu Lichtstreifen).
 
+const IDLE_FRAME_MS = 50; // ~20 Bilder pro Sekunde im Ruhezustand
+
 export class Starfield {
   constructor(canvas) {
     this.canvas = canvas;
@@ -21,7 +23,8 @@ export class Starfield {
   }
 
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // Sterne brauchen keine volle Auflösung; spart Grafikleistung und Akku.
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     this.w = window.innerWidth;
     this.h = window.innerHeight;
     this.canvas.width = Math.round(this.w * dpr);
@@ -64,7 +67,11 @@ export class Starfield {
 
   frame(now) {
     if (!this.running) return;
-    const dt = Math.min(50, now - this.last) / 16.67;
+    requestAnimationFrame(this.frame);
+    // Im Ruhezustand reichen ~20 Bilder pro Sekunde (spart Akku); nur der Sprung läuft flüssig.
+    const warping = this.warpTarget > 0 || this.warp > 0.02;
+    if (!warping && now - this.last < IDLE_FRAME_MS) return;
+    const dt = Math.min(warping ? 50 : 80, now - this.last) / 16.67;
     this.last = now;
     this.warp += (this.warpTarget - this.warp) * (this.warpTarget > this.warp ? 0.05 : 0.04) * dt;
     const { g, w, h } = this;
@@ -107,6 +114,5 @@ export class Starfield {
         g.fillRect(x, y, size, size);
       }
     }
-    requestAnimationFrame(this.frame);
   }
 }
