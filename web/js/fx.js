@@ -34,9 +34,9 @@ function bolt(from, to, color, duration, offset) {
 /** Doppelter Laserschuss von `from` nach `to` (Bildschirmkoordinaten). */
 export async function laser(from, to, color) {
   const dist = Math.hypot(to.x - from.x, to.y - from.y);
-  const duration = reduced ? 120 : Math.max(220, Math.min(420, dist * 0.7));
+  const duration = reduced ? 100 : Math.max(150, Math.min(260, dist * 0.45));
   const a = bolt(from, to, color, duration, -5);
-  await wait(55);
+  await wait(40);
   const b = bolt(from, to, color, duration, 5);
   await Promise.all([a, b]);
 }

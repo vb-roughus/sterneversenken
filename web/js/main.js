@@ -388,26 +388,22 @@ class LocalMatch {
     const p = this.viewer;
     const g = this.game;
     if (this.busy || !g.canFire(p, x, y)) return;
-    this.busy = true;
     battle.setStatus('Feuer!', `Ziel ${coordLabel(x, y)}`, '');
     battle.render();
     const res = g.fire(p, x, y);
     this.lastShot[1 - p] = { x, y };
     this.turnLog.push(res);
+    // Treffer mit Bonusschuss: Brett bleibt frei, man kann sofort weiterschiessen.
+    const again = !g.isOver() && g.turn() === p;
+    if (!again) this.busy = true;
     await battle.shootLaser(x, y);
-    await battle.showOutcome(res);
-    if (this.ended) return;
+    await battle.showOutcome(res, { again });
+    if (this.ended || again) return;
     if (g.isOver()) {
       this.finish();
       return;
     }
-    if (g.turn() === p) {
-      await wait(450);
-      this.busy = false;
-      this.updateStatus(res.result === 'miss' ? undefined : 'Treffer – du darfst nochmals schiessen');
-      return;
-    }
-    await wait(900);
+    await wait(600);
     if (this.ended) return;
     if (this.mode === 'ai') {
       this.updateStatus();
@@ -433,12 +429,13 @@ class LocalMatch {
     this.busy = true;
     this.updateStatus();
     while (!this.ended && !g.isOver() && g.turn() === 1) {
-      await wait(600 + Math.random() * 700);
+      await wait(450 + Math.random() * 450);
       if (this.ended) return;
       const { x, y } = chooseShot(g.boards[0], this.rules, this.level);
       const res = g.fire(1, x, y);
       this.lastShot[0] = { x, y };
-      await battle.showIncoming(res);
+      // Eigenes Brett bleibt vergrössert, solange die KI weiterschiesst.
+      await battle.showIncoming(res, { release: g.isOver() || g.turn() !== 1 });
     }
     if (this.ended) return;
     this.busy = false;
@@ -609,16 +606,22 @@ class OnlineMatch {
     s.on('outcome', (shot) =>
       this.enqueue(async () => {
         await this.laser;
-        await battle.showOutcome(shot);
-        await this.afterShot(shot, true);
+        // Treffer mit Bonusschuss: nicht auf die Explosion warten, sofort weiterschiessen.
+        const again = s.phase === 'battle' && s.game.turn() === 0;
+        await battle.showOutcome(shot, { again });
+        if (!again) await this.afterShot(shot, true);
       }),
     );
-    s.on('incoming', (shot) =>
+    s.on('incoming', (shot) => {
+      this.incomingQueued = (this.incomingQueued || 0) + 1;
       this.enqueue(async () => {
-        await battle.showIncoming(shot);
+        this.incomingQueued -= 1;
+        // Eigenes Brett bleibt vergrössert, solange der Gegner weiterschiesst.
+        const release = this.incomingQueued === 0 && !(s.phase === 'battle' && s.game.turn() === 1);
+        await battle.showIncoming(shot, { release });
         await this.afterShot(shot, false);
-      }),
-    );
+      });
+    });
     s.on('sync', () => this.enqueue(() => this.onSync()));
     s.on('over', ({ winner }) => this.enqueue(() => this.showOver(winner)));
     s.on('reveal', ({ fleet, verified }) =>
@@ -800,7 +803,7 @@ class OnlineMatch {
 
   async afterShot(shot, mine) {
     if (this.session.phase !== 'battle') return;
-    await wait(mine ? 650 : 250);
+    await wait(mine ? 300 : 120);
     const myTurn = this.session.game.turn() === 0;
     if (myTurn && !mine) sfx.turn();
     this.updateStatus(mine && myTurn && shot.result !== 'miss' ? 'Treffer – du darfst nochmals schiessen' : undefined);
