@@ -56,6 +56,7 @@ export class BattleUI {
     this.lastOwn = ctx.lastOwn || null;
     this.lastEnemy = null;
     this.hideResult();
+    this.ownWrap.classList.remove('focus');
     this.enemyTagEl.textContent = 'Ziel';
     this.root.classList.remove('revealed');
     this.enemyNameEl.textContent = ctx.opp;
@@ -150,18 +151,28 @@ export class BattleUI {
     return laser(this.fireOrigin(), { x: cell.cx, y: cell.cy }, MY_LASER);
   }
 
-  async showOutcome(shot) {
+  /**
+   * Ergebnis des eigenen Schusses zeigen.
+   * again: Treffer mit Bonusschuss – nicht auf die Explosion warten, sofort weiterschiessen.
+   */
+  async showOutcome(shot, { again = false } = {}) {
     const cell = this.enemyView.cellRect(shot.x, shot.y);
     this.lastEnemy = { x: shot.x, y: shot.y };
     this.render();
     this.playImpact(shot, cell);
-    await explode({ x: cell.cx, y: cell.cy }, shot.result, cell.width);
-    this.announce(shot, false);
+    const blast = explode({ x: cell.cx, y: cell.cy }, shot.result, cell.width);
+    this.announce(shot, false, again);
+    if (!again) await blast;
   }
 
-  async showIncoming(shot) {
+  /**
+   * Schuss des Gegners aufs eigene Brett zeigen (Brett wird dafür vergrössert).
+   * release: danach wieder verkleinern; false, wenn der Gegner gleich nochmals schiesst.
+   */
+  async showIncoming(shot, { release = true } = {}) {
+    const zoomed = this.ownWrap.classList.contains('focus');
     this.ownWrap.classList.add('focus');
-    await wait(320);
+    if (!zoomed) await wait(220);
     const cell = this.ownView.cellRect(shot.x, shot.y);
     sfx.laser(true);
     await laser({ x: window.innerWidth / 2, y: -20 }, { x: cell.cx, y: cell.cy }, ENEMY_LASER);
@@ -169,11 +180,13 @@ export class BattleUI {
     this.render();
     this.playImpact(shot, cell);
     if (shot.result !== 'miss') flashScreen();
-    await explode({ x: cell.cx, y: cell.cy }, shot.result, cell.width);
+    const blast = explode({ x: cell.cx, y: cell.cy }, shot.result, cell.width);
     this.announce(shot, true);
-    await wait(650);
+    await wait(shot.result === 'miss' ? 350 : 500);
+    if (!release) return;
+    await blast;
     this.ownWrap.classList.remove('focus');
-    await wait(250);
+    await wait(200);
   }
 
   playImpact(shot) {
@@ -187,13 +200,14 @@ export class BattleUI {
     }
   }
 
-  announce(shot, incoming) {
+  announce(shot, incoming, again = false) {
     const where = coordLabel(shot.x, shot.y);
+    const more = again ? ' – nochmals feuern!' : '';
     if (shot.result === 'miss') this.setStatus('Daneben', `${where} – nur leerer Raum`, 'muted');
-    else if (shot.result === 'hit') this.setStatus('Treffer!', incoming ? `Schaden bei ${where}` : `${where} – weiter so`, incoming ? 'bad' : 'good');
+    else if (shot.result === 'hit') this.setStatus('Treffer!', incoming ? `Schaden bei ${where}` : `${where}${more || ' – weiter so'}`, incoming ? 'bad' : 'good');
     else {
       const name = shipDef(shot.ship.id).name;
-      this.setStatus(incoming ? `${name} verloren` : `${name} versenkt!`, where, incoming ? 'bad' : 'good');
+      this.setStatus(incoming ? `${name} verloren` : `${name} versenkt!`, `${where}${more}`, incoming ? 'bad' : 'good');
     }
   }
 
@@ -238,6 +252,7 @@ export class BattleUI {
     }
     r.hidden = false;
     r.classList.remove('peek');
+    this.ownWrap.classList.remove('focus');
   }
 
   setResultNote(text, alert = false) {
