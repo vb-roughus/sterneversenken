@@ -76,6 +76,10 @@
           <button type="button" class="btn update-btn" data-action="update" data-bind="update-button">Nach Updates suchen</button>
         </div>
         <div class="panel">
+          <h3>Steuerung</h3>
+          <label class="toggle"><input type="checkbox" id="set-onetap"><span>Feuern mit einem Tipp<small>Aus: erst Ziel wählen, dann „Feuer“</small></span></label>
+        </div>
+        <div class="panel">
           <h3>Ton &amp; Vibration</h3>
           <label class="toggle"><input type="checkbox" id="set-sound"><span>Soundeffekte</span></label>
           <label class="toggle"><input type="checkbox" id="set-vibrate"><span>Vibration</span></label>
@@ -101,7 +105,7 @@
         </div>
         <div class="panel">
           <h3>Gefecht</h3>
-          <p>Tippe auf ein Feld des Gegners, um es anzuvisieren, und dann auf „Feuer“ oder nochmals aufs Feld. Gemeldet wird <b>Daneben</b>, <b>Treffer</b> oder <b>Versenkt</b>. Mit der Regel „Nach Treffer nochmals“ darfst du weiterschiessen, solange du triffst.</p>
+          <p>Tippe auf ein Feld des Gegners, um zu feuern. Wer sich vor Fehlschüssen schützen will, schaltet in den Einstellungen „Feuern mit einem Tipp“ aus: Dann wird zuerst anvisiert und mit „Feuer“ oder einem zweiten Tipp geschossen. Gemeldet wird <b>Daneben</b>, <b>Treffer</b> oder <b>Versenkt</b>. Mit der Regel „Nach Treffer nochmals“ darfst du weiterschiessen, solange du triffst.</p>
           <p>Ist die Regel „Schiffe dürfen sich berühren“ aus, markiert das Spiel die Felder rund um versenkte Schiffe automatisch als leer.</p>
         </div>
         <div class="panel">
@@ -210,6 +214,19 @@
         <div class="score" hidden>0 : 0</div>
       </header>
       <div class="battle-body">
+        <!-- Einhandbedienung: eigene Flotte klein oben, Zielbrett und Feuerknopf unten im Daumenbereich -->
+        <div class="own-area">
+          <div class="own-wrap">
+            <div class="side-head small">
+              <span class="side-label">Deine Flotte · <b class="own-name"></b></span>
+            </div>
+            <div class="own-host"></div>
+          </div>
+          <div class="own-info">
+            <span class="side-label">Deine Schiffe</span>
+            <span class="fleet-row own-fleet"></span>
+          </div>
+        </div>
         <div class="enemy-wrap">
           <div class="side-head">
             <span class="side-label"><span class="enemy-tag">Ziel</span> · <b class="enemy-name"></b></span>
@@ -217,18 +234,7 @@
           <div class="fleet-row enemy-fleet" title="Gegnerische Schiffe – die Zahl gibt an, wie viele Felder ein Schiff belegt"></div>
           <div class="enemy-host"></div>
         </div>
-        <div class="lower">
-          <div class="own-wrap">
-            <div class="side-head small">
-              <span class="side-label">Deine Flotte · <b class="own-name"></b></span>
-            </div>
-            <div class="own-host"></div>
-          </div>
-          <div class="controls">
-            <span class="fleet-row own-fleet"></span>
-            <button type="button" class="btn fire-btn" disabled>Ziel wählen</button>
-          </div>
-        </div>
+        <button type="button" class="btn fire-btn" disabled>Ziel wählen</button>
       </div>
       <div class="result" hidden>
         <div class="result-card">

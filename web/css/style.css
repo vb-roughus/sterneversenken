@@ -30,8 +30,6 @@
   --hull-line: #5d6a7e;
   --engine: #8fe3ff;
   --radius: 14px;
-  /* Brettbreite im Gefecht: passt in Breite und Höhe (auch bei fast quadratischen Bildschirmen wie dem Fold) */
-  --bt-board: min(100%, max(240px, calc((100vh - 170px) / 1.5)));
   --display: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
   --mono: 'Share Tech Mono', ui-monospace, 'Cascadia Mono', monospace;
   --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -456,17 +454,18 @@ button { font: inherit; color: inherit; }
   width: 100%;
   margin: 0 auto;
 }
-.place-board { width: min(100%, max(230px, calc(100vh - 410px))); margin: 0 auto; }
+.place-board { width: min(100%, max(230px, calc(100vh - 420px))); margin: 0 auto; }
 .dock { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; touch-action: none; }
 .dock-ship {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "art meta" "name name";
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 4px;
   text-align: left;
-  min-height: 52px;
-  padding: 8px 10px;
+  padding: 7px 8px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--panel);
@@ -474,14 +473,20 @@ button { font: inherit; color: inherit; }
   touch-action: none;
   min-width: 0;
 }
-.dock-art { width: calc(var(--len) * 14px); height: 16px; }
-.dock-name { font: 700 11px/1.25 var(--display); letter-spacing: .03em; text-transform: uppercase; max-width: 100%; hyphens: manual; overflow-wrap: anywhere; }
-.dock-meta { font: 12px var(--mono); color: var(--muted); }
-.dock-ship.placed::after { content: '✓'; position: absolute; top: 6px; right: 9px; color: var(--good); font-size: 14px; }
+.dock-art { grid-area: art; width: calc(var(--len) * 12px); height: 14px; }
+.dock-name { grid-area: name; font: 700 10.5px/1.2 var(--display); letter-spacing: .03em; text-transform: uppercase; max-width: 100%; hyphens: manual; overflow-wrap: anywhere; }
+.dock-meta { grid-area: meta; justify-self: end; font: 12px var(--mono); color: var(--muted); white-space: nowrap; }
+.dock-ship.placed::after { content: '✓'; position: absolute; bottom: 5px; right: 8px; color: var(--good); font-size: 14px; }
 .dock-ship.placed { opacity: .55; }
 .dock-ship.selected { border-color: var(--gold); box-shadow: 0 0 12px rgba(255, 213, 74, .25); opacity: 1; }
 .place-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .opp-status { margin: 0; text-align: center; color: var(--muted); font: 13px var(--mono); min-height: 1em; }
+/* Einhandbedienung: Schiffsauswahl oben, Brett, Werkzeuge und „Bereit“ unten im Daumenbereich */
+.dock { order: 1; margin-top: auto; }
+.place-board { order: 2; }
+.place-tools { order: 3; }
+.opp-status { order: 4; }
+.place-body > [data-action="ready"] { order: 5; }
 .dragging, .dragging * { cursor: grabbing !important; }
 
 /* ---- Gefecht ----------------------------------------------------------------- */
@@ -509,6 +514,14 @@ button { font: inherit; color: inherit; }
   font: 700 14px var(--display);
   text-align: center;
 }
+.screen[data-screen="battle"] {
+  /* Höhe für Feuerknopf + Abstand; bei „Feuern mit einem Tipp“ entfällt der Knopf */
+  --fire-h: 82px;
+  /* Brettbreite: passt in Breite und Höhe. Höhe gesamt ≈ Kopf + eigenes Brett (0.42·B) + Zielbrett (B)
+     + Beschriftungen + Feuerknopf ≈ 1.42·B + 172px + Feuerknopf */
+  --bt-board: min(100%, max(240px, calc((100vh - 172px - var(--fire-h)) / 1.42)));
+}
+.screen[data-screen="battle"].one-tap { --fire-h: 0px; }
 .battle-body {
   flex: 1;
   min-height: 0;
@@ -525,17 +538,21 @@ button { font: inherit; color: inherit; }
 .side-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 0 0 4px; min-height: 18px; }
 .side-label { font: 12px var(--mono); color: var(--muted); letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .side-label b { color: var(--text); font-weight: 400; }
-/* auto-Ränder statt justify-content: center – zentriert, ohne bei Platzmangel oben abzuschneiden */
-.enemy-wrap { width: var(--bt-board); margin: auto auto 0; }
+/* Einhandbedienung: eigene Flotte klein oben (nur zum Anschauen), darunter Zielbrett und Feuerknopf.
+   margin-top: auto schiebt alles nach unten in den Daumenbereich, ohne bei Platzmangel abzuschneiden. */
+.own-area { display: grid; grid-template-columns: minmax(0, 42%) 1fr; gap: 12px; align-items: start; width: var(--bt-board); margin: auto auto 0; }
+.own-info { display: flex; flex-direction: column; gap: 8px; padding-top: 22px; min-width: 0; }
+.own-info .fleet-row { justify-content: flex-start; }
+.enemy-wrap { width: var(--bt-board); margin: 0 auto; }
 .screen[data-screen="battle"].revealed .enemy-tag { color: var(--gold); }
 .screen[data-screen="battle"].my-turn .enemy-wrap .field { border-color: var(--gold); box-shadow: 0 0 26px rgba(255, 213, 74, .22), inset 0 0 30px rgba(255, 213, 74, .06); }
-.lower { display: grid; grid-template-columns: minmax(0, 50%) 1fr; gap: 12px; align-items: end; width: var(--bt-board); margin: 0 auto auto; }
-.own-wrap { transform-origin: 0% 100%; transition: transform .3s ease; position: relative; z-index: 5; }
+.own-wrap { transform-origin: 0 0; transition: transform .3s ease; position: relative; z-index: 5; }
 .own-wrap.focus { transform: scale(1.7); }
 .own-wrap.focus .field { background: rgba(4, 12, 28, .92); }
-.controls { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
-.controls .fleet-row { justify-content: flex-end; }
 .fire-btn {
+  flex: none;
+  width: var(--bt-board);
+  margin: 0 auto;
   min-height: 72px;
   font-size: 15px;
   border-color: var(--bad);
@@ -544,6 +561,7 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 0 20px rgba(255, 77, 90, .25);
 }
 .fire-btn:disabled { border-color: var(--line); background: var(--panel); color: var(--muted); box-shadow: none; opacity: .75; }
+.screen[data-screen="battle"].one-tap .fire-btn { display: none; }
 
 .result {
   position: absolute; left: 0; right: 0; bottom: 0;
@@ -617,6 +635,13 @@ button { font: inherit; color: inherit; }
 .overlay-card h3 { margin: 0 0 8px; font: 700 17px var(--display); letter-spacing: .08em; text-transform: uppercase; }
 .overlay-card p { margin: 0 0 16px; color: #cdd7ea; font: 14px/1.5 var(--mono); }
 .overlay-buttons { display: grid; gap: 10px; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.overlay-buttons .btn { min-height: 56px; }
+/* Einhandbedienung: Dialoge als Leiste unten, Knöpfe in Daumennähe */
+@media (orientation: portrait) {
+  .overlay { place-items: end center; padding: 16px 12px 20px; }
+  .overlay-card { width: min(100%, 480px); animation: sheet-up .3s cubic-bezier(.2, .8, .2, 1); }
+}
+@keyframes sheet-up { from { transform: translateY(60px); opacity: 0; } }
 .spinner {
   width: 44px; height: 44px; margin: 0 auto 14px;
   border-radius: 50%;
@@ -705,13 +730,23 @@ button { font: inherit; color: inherit; }
 
 /* ---- Querformat / Tablet ----------------------------------------------------- */
 @media (orientation: landscape) and (min-width: 700px) {
-  .battle-body { flex-direction: row; align-items: center; justify-content: center; gap: 28px; }
-  .enemy-wrap { width: min(56vw, calc(100vh - 120px)); margin: 0; }
-  .lower { width: min(34vw, 360px); margin: 0; grid-template-columns: 1fr; }
-  .own-wrap { transform-origin: 50% 100%; }
+  .battle-body {
+    display: grid;
+    grid-template-columns: auto minmax(240px, min(34vw, 360px));
+    grid-template-areas: "enemy own" "enemy fire";
+    grid-template-rows: auto 1fr;
+    align-content: center; justify-content: center; align-items: start;
+    column-gap: 28px; row-gap: 14px;
+  }
+  .enemy-wrap { grid-area: enemy; width: min(56vw, calc(100vh - 120px)); margin: 0; }
+  .own-area { grid-area: own; width: 100%; margin: 0; grid-template-columns: 1fr; }
+  .own-info { padding-top: 0; }
+  .fire-btn { grid-area: fire; width: 100%; }
+  .own-wrap { transform-origin: 50% 0; }
   .own-wrap.focus { transform: scale(1.3); }
   .place-body { max-width: 980px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; align-content: start; }
-  .place-board { grid-row: span 4; width: min(100%, calc(100vh - 110px)); }
+  .place-board { grid-column: 1; grid-row: 1 / span 5; width: min(100%, calc(100vh - 110px)); }
+  .dock, .place-tools, .opp-status, .place-body > [data-action="ready"] { grid-column: 2; margin-top: 0; }
 }
 @media (max-height: 640px) and (orientation: portrait) {
   .bt-status { font-size: 15px; }
@@ -756,7 +791,7 @@ body.warping .screen.active { opacity: 0; transform: scale(.96); }
 }
 #dialog[data-kind="rematch"] h3::before { content: '⚔ '; }
 #dialog[data-kind="rematch"] p { font-size: 16px; color: var(--text); }
-@keyframes rematch-in { from { transform: scale(.7); opacity: 0; } }
+@keyframes rematch-in { from { transform: translateY(80px) scale(.9); opacity: 0; } }
 .result-note.alert {
   background: rgba(255, 213, 74, .22);
   border: 1px solid var(--gold);
@@ -774,7 +809,7 @@ body.warping .screen.active { opacity: 0; transform: scale(.96); }
 /* Solange die Ergebnisleiste offen ist: eigenes Brett ausblenden, gegnerisches Brett über der Leiste
    zentrieren und bei Bedarf verkleinern, damit keine Zeile verdeckt wird. */
 .screen[data-screen="battle"]:has(.result:not([hidden]):not(.peek)) .battle-body { padding-bottom: calc(var(--result-h, 0px) + 20px); }
-.screen[data-screen="battle"]:has(.result:not([hidden]):not(.peek)) .lower { display: none; }
+.screen[data-screen="battle"]:has(.result:not([hidden]):not(.peek)) :is(.own-area, .fire-btn) { display: none; }
 .screen[data-screen="battle"]:has(.result:not([hidden]):not(.peek)) .enemy-wrap {
   width: min(var(--bt-board), max(220px, calc(100vh - var(--result-h, 0px) - 140px)));
   margin: auto;

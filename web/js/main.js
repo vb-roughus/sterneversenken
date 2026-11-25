@@ -32,6 +32,7 @@ function loadSettings() {
     hotseat: [clean(s.hotseat?.[0], name), clean(s.hotseat?.[1], 'Spieler 2')],
     sound: s.sound !== false,
     vibrate: s.vibrate !== false,
+    oneTap: s.oneTap !== false, // Feuern mit einem Tipp (Einhandbedienung)
     rules: normalizeRules(s.rules),
     aiLevel: AI_LEVELS.some((l) => l.id === s.aiLevel) ? s.aiLevel : 'normal',
   };
@@ -209,6 +210,7 @@ function setupSettings() {
   for (const [id, key, apply] of [
     ['#set-sound', 'sound', setSoundEnabled],
     ['#set-vibrate', 'vibrate', setVibrateEnabled],
+    ['#set-onetap', 'oneTap', (on) => battle.setOneTap(on)],
   ]) {
     const el = $(id);
     el.checked = settings[key];
@@ -1190,6 +1192,7 @@ document.addEventListener('click', (e) => {
 
 renderRules();
 setupSettings();
+battle.setOneTap(settings.oneTap);
 setupUpdates();
 show('menu');
 
