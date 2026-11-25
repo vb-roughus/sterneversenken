@@ -226,7 +226,7 @@ export class Placement {
       return `<button type="button" class="dock-ship ${cls}" data-id="${d.id}" style="--len:${d.size}">
         <span class="dock-art">${shipSvg(d.id, d.size, 'h')}</span>
         <span class="dock-name">${d.name.replace(/(?<=\p{L}{4})(kreuzer|staffel|schiff|jäger)$/iu, '\u00AD$1')}</span>
-        <span class="dock-meta">${d.size} Felder ${dir === 'h' ? '⇆' : '⇅'}</span>
+        <span class="dock-meta" title="${d.size} Felder">${d.size} ${dir === 'h' ? '⇆' : '⇅'}</span>
       </button>`;
     }).join('');
     this.onChange(this);

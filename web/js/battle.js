@@ -31,6 +31,8 @@ export class BattleUI {
       new ResizeObserver(() => root.style.setProperty('--result-h', `${card.offsetHeight}px`)).observe(card);
     }
     this.target = null;
+    this.aiming = null; // gerade beschossenes Feld (Fadenkreuz, bis das Ergebnis da ist)
+    this.oneTap = false;
     this.ctx = null;
     this.lastOwn = null;
     this.lastEnemy = null;
@@ -56,6 +58,7 @@ export class BattleUI {
     this.lastOwn = ctx.lastOwn || null;
     this.lastEnemy = null;
     this.hideResult();
+    this.aiming = null;
     this.ownWrap.classList.remove('focus');
     this.enemyTagEl.textContent = 'Ziel';
     this.root.classList.remove('revealed');
@@ -76,7 +79,7 @@ export class BattleUI {
       this.enemyView.pulseCells([cell], 'deny');
       return;
     }
-    if (this.target && this.target.x === cell.x && this.target.y === cell.y) {
+    if (this.oneTap || (this.target && this.target.x === cell.x && this.target.y === cell.y)) {
       this.fire(cell);
       return;
     }
@@ -88,8 +91,17 @@ export class BattleUI {
   fire(cell) {
     if (!this.ctx.canFire()) return;
     this.target = null;
-    this.enemyView.setCursor(null);
+    this.aiming = cell;
+    this.enemyView.setCursor(cell);
     this.ctx.onFire(cell.x, cell.y);
+  }
+
+  /** Feuern mit einem Tipp (ohne Anvisieren); blendet den Feuerknopf aus. */
+  setOneTap(on) {
+    this.oneTap = on;
+    this.target = null;
+    this.root.classList.toggle('one-tap', on);
+    this.render();
   }
 
   setStatus(main, sub = '', tone = '') {
@@ -127,7 +139,7 @@ export class BattleUI {
     this.root.classList.toggle('my-turn', can);
     this.enemyView.setInteractive(can);
     if (!can) this.target = null;
-    this.enemyView.setCursor(this.target);
+    this.enemyView.setCursor(this.target || this.aiming);
     this.fireBtn.disabled = !can || !this.target;
     this.fireBtn.textContent = this.target ? `Feuer auf ${coordLabel(this.target.x, this.target.y)}` : 'Ziel wählen';
     if (ctx.score) {
@@ -140,6 +152,7 @@ export class BattleUI {
 
   fireOrigin() {
     const r = this.fireBtn.getBoundingClientRect();
+    if (!r.width) return { x: window.innerWidth / 2, y: window.innerHeight + 20 }; // Knopf ausgeblendet
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
 
@@ -158,6 +171,7 @@ export class BattleUI {
   async showOutcome(shot, { again = false } = {}) {
     const cell = this.enemyView.cellRect(shot.x, shot.y);
     this.lastEnemy = { x: shot.x, y: shot.y };
+    if (this.aiming && this.aiming.x === shot.x && this.aiming.y === shot.y) this.aiming = null;
     this.render();
     this.playImpact(shot, cell);
     const blast = explode({ x: cell.cx, y: cell.cy }, shot.result, cell.width);
